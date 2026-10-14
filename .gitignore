@@ -1,0 +1,10 @@
+.DS_Store
+/Z_SurrenTechFiles/
+/site/.env
+/site/db.sqlite3
+/site/staticfiles/
+/site/_vendor*
+/site/tmp/
+__pycache__/
+*.pyc
+/surrentech_site.sqlite3

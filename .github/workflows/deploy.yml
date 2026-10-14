@@ -1,0 +1,70 @@
+name: Deploy surrentech.com
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Django system check
+        working-directory: site
+        run: |
+          pip install -q -r requirements.txt
+          python manage.py check --deploy --fail-level WARNING
+
+      - name: Build vendor bundle for the server (Linux, cPanel Python 3.12)
+        working-directory: site
+        run: |
+          rm -rf /tmp/vendor && mkdir -p /tmp/vendor
+          pip install -q --only-binary=:all: --python-version 3.12 \
+            --platform manylinux2014_x86_64 --target /tmp/vendor -r requirements.txt
+          tar -czf _vendor.tar.gz -C /tmp/vendor .
+
+      - name: Collect static files
+        working-directory: site
+        env:
+          DJANGO_SECRET_KEY: ci-check-only
+          DJANGO_ALLOWED_HOSTS: surrentech.com
+        run: python manage.py collectstatic --noinput
+
+      - name: Stamp this deploy into passenger_wsgi.py (mtime+content change restarts the app)
+        working-directory: site
+        run: sed -i 's/^DEPLOY_STAMP = .*/DEPLOY_STAMP = "${{ github.sha }}"/' passenger_wsgi.py
+
+      - name: Deploy to HostIndia cPanel over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: surrentech.com
+          port: 21
+          protocol: ftps
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./site/
+          server-dir: /public_html/
+          exclude: |
+            **/.git**
+            **/.DS_Store
+            **/__pycache__/**
+            .env
+            .env.example
+            tmp/**
+            _vendor/**
+            _vendor.old-*/**
+            _vendor.new-*/**
+            db.sqlite3
+            stderr.log
+
+      - name: Smoke test
+        run: |
+          sleep 20
+          curl -fsS --max-time 30 https://surrentech.com/healthz
+          curl -fsS --max-time 30 https://www.surrentech.com/ | grep -q "Surren"
