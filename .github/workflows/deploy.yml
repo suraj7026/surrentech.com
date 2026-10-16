@@ -61,9 +61,10 @@ jobs:
       - name: Deploy to HostIndia cPanel over FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: surrentech.com
+          server: server106.iabhost.com
           port: 21
           protocol: ftps
+          security: strict
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./site/
