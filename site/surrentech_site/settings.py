@@ -89,7 +89,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 X_FRAME_OPTIONS = "DENY"
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False  # HTTPS redirect happens in .htaccess (LiteSpeed), not Django
+    SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
 
 LOGGING = {
