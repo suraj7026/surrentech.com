@@ -14,71 +14,27 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: shivammathur/setup-php@v2
         with:
-          python-version: "3.12"
-
-      - name: Django system check
-        working-directory: site
+          php-version: '8.2'
+          extensions: pdo_sqlite
+          coverage: none
+      - name: PHP syntax and application checks
         run: |
-          pip install -q -r requirements.txt
-          export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
-          # HSTS subdomain/preload opt-ins remain visible warnings: this account hosts other apps.
-          python manage.py check --deploy --fail-level ERROR
-          python manage.py makemigrations --check --dry-run
-
+          find public tests -name '*.php' -exec php -l {} \;
+          python3 tests/test_php.py
       - name: Check deployment credentials
         env:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          test -n "$FTP_USERNAME" || { echo "::error::Configure the FTP_USERNAME repository secret."; exit 1; }
-          test -n "$FTP_PASSWORD" || { echo "::error::Configure the FTP_PASSWORD repository secret."; exit 1; }
-
-      - name: Build vendor bundle for the server (Linux, cPanel Python 3.12)
-        working-directory: site
-        run: |
-          rm -rf /tmp/vendor && mkdir -p /tmp/vendor
-          pip install -q --only-binary=:all: --python-version 3.12 \
-            --platform manylinux2014_x86_64 --target /tmp/vendor -r requirements.txt
-          tar -czf _vendor.tar.gz -C /tmp/vendor .
-
-      - name: Collect static files
-        working-directory: site
-        env:
-          DJANGO_SECRET_KEY: ci-check-only
-          DJANGO_ALLOWED_HOSTS: surrentech.com
-        run: python manage.py collectstatic --noinput
-
-      - name: Verify Passenger startup with packaged dependencies
-        working-directory: site
-        env:
-          DJANGO_DB_PATH: ${{ runner.temp }}/startup-check.sqlite3
-          RUN_MIGRATIONS_ON_START: "1"
-          PASSENGER_WSGI_STRICT: "1"
-        run: |
-          export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
-          python - <<'PY'
-          import passenger_wsgi
-          from django.test import Client
-          client = Client(HTTP_HOST="surrentech.com")
-          assert client.get("/healthz").status_code == 301
-          response = client.get("/healthz", secure=True)
-          assert response.status_code == 200 and response.content == b"ok"
-          assert client.get("/", secure=True).status_code == 200
-          assert client.get("/static/assets/logo.png", secure=True).status_code == 200
-          PY
-
-      - name: Stamp this deploy into passenger_wsgi.py (mtime+content change restarts the app)
-        working-directory: site
-        run: sed -i 's/^DEPLOY_STAMP = .*/DEPLOY_STAMP = "${{ github.sha }}"/' passenger_wsgi.py
-
-      - name: Deploy to HostIndia cPanel over FTPS
+          test -n "$FTP_USERNAME" || { echo "::error::Configure FTP_USERNAME."; exit 1; }
+          test -n "$FTP_PASSWORD" || { echo "::error::Configure FTP_PASSWORD."; exit 1; }
+      - name: Deploy PHP to HostingInIndia cPanel over FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: server106.iabhost.com
@@ -87,23 +43,21 @@ jobs:
           security: strict
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./site/
+          local-dir: ./public/
           server-dir: /public_html/
           exclude: |
             **/.git**
             **/.DS_Store
-            **/__pycache__/**
             .env
             .env.example
             tmp/**
-            _vendor/**
-            _vendor.old-*/**
-            _vendor.new-*/**
-            db.sqlite3
+            _vendor*/**
+            *.sqlite3
             stderr.log
-
-      - name: Smoke test
+      - name: Verify live site
         run: |
-          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 --max-time 30 https://surrentech.com/healthz | grep -qx "ok"
-          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 --max-time 30 https://www.surrentech.com/ -o /tmp/surrentech-home.html
-          grep -q "Surren" /tmp/surrentech-home.html
+          curl -fsS --retry 4 --retry-all-errors --retry-delay 5 --max-time 20 https://surrentech.com/healthz | grep -qx 'ok'
+          curl -fsS --max-time 20 https://surrentech.com/ -o /tmp/surrentech-home.html
+          grep -q 'Surren Technologies' /tmp/surrentech-home.html
+          curl -fsS --max-time 20 https://www.surrentech.com/ -o /dev/null
+          curl -fsS --max-time 20 https://surrentech.com/assets/logo.png -o /dev/null

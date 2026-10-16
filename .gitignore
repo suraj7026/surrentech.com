@@ -8,3 +8,5 @@
 __pycache__/
 *.pyc
 /surrentech_site.sqlite3
+/surrentech_php.sqlite3
+/public/.env
