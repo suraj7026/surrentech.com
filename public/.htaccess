@@ -1,5 +1,5 @@
 Options -Indexes
-DirectoryIndex index.php
+DirectoryIndex index.html index.php
 
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
@@ -8,8 +8,9 @@ RewriteRule ^ https://surrentech.com%{REQUEST_URI} [R=301,L]
 
 RewriteRule ^\.well-known/ - [L]
 RewriteRule ^assets/[a-zA-Z0-9_-]+\.png$ - [L]
-RewriteRule ^(?:index\.php)?$ index.php [L]
-RewriteRule ^(?:healthz|consult|manage-console(?:/.*)?)$ index.php [QSA,L]
+RewriteRule ^(?:index\.html)?$ - [L]
+RewriteRule ^index\.php$ index.php [L]
+RewriteRule ^(?:healthz|form-token|consult|manage-console(?:/.*)?)$ index.php [QSA,L]
 RewriteRule ^ - [R=404,L]
 
 <FilesMatch "(^\.|\.(?:py|sqlite3?|log|gz|ini|env)$|^(?:home|app)\.php$)">
@@ -17,5 +18,5 @@ RewriteRule ^ - [R=404,L]
 </FilesMatch>
 
 <IfModule mime_module>
-  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+  AddHandler application/x-httpd-ea-php83 .php .php8 .phtml
 </IfModule>

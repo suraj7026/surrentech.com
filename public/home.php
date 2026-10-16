@@ -1297,12 +1297,31 @@ h3{font-size:clamp(1.18rem,1vw + .8rem,1.42rem);line-height:1.2;letter-spacing:-
   });
 
   /* ---- consult form: quick client-side check, the server does the rest ---- */
-  $("#consultForm").addEventListener("submit", e=>{
+  $("#contact").classList.toggle("sent", new URLSearchParams(location.search).get("sent") === "1");
+  $("#consultForm").addEventListener("submit", async e=>{
     const email = $("#wEmail");
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.value)){
       e.preventDefault();
       email.focus();
       email.closest(".mini-field").style.borderColor = "var(--rose)";
+      return;
+    }
+    const form = e.currentTarget, token = form.querySelector('[name="csrf_token"]');
+    if(token.value) return;
+    e.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const response = await fetch('/form-token', {credentials:'same-origin', cache:'no-store'});
+      if(!response.ok) throw new Error('Form unavailable');
+      const data = await response.json();
+      token.value = data.csrf_token;
+      form.submit();
+    } catch(error) {
+      button.disabled = false;
+      let message = document.getElementById('consultError');
+      if(!message){ message = document.createElement('p'); message.id = 'consultError'; message.setAttribute('role','alert'); form.append(message); }
+      message.textContent = 'The form is temporarily unavailable. Please email rajagopalanrv@surrentech.com or call +91 81488 72524.';
     }
   });
 

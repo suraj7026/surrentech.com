@@ -37,6 +37,11 @@ ini_set('session.use_strict_mode', '1');
 session_set_cookie_params(['httponly' => true, 'secure' => $secure, 'samesite' => 'Lax', 'path' => '/']);
 session_start();
 $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
+if ($path === '/form-token' && $method === 'GET') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['csrf_token' => $_SESSION['csrf']]);
+    exit;
+}
 $formError = '';
 $sent = ($_GET['sent'] ?? '') === '1';
 

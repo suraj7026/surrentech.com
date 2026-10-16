@@ -40,7 +40,8 @@ with tempfile.TemporaryDirectory() as folder:
             assert (status, body) == (200, 'ok')
             status, body = request('/')
             assert status == 200 and 'Surren Technologies' in body and '{%' not in body
-            token = re.search(r'name="csrf_token" value="([^"]+)"', body)[1]
+            import json
+            token = json.loads(request('/form-token')[1])['csrf_token']
             assert request('/consult', {'email': 'person@example.test'})[0] == 403
             assert request('/consult', {'email': 'invalid', 'csrf_token': token})[0] == 422
             assert request('/consult', {'email': 'bot@example.test', 'website': 'spam', 'csrf_token': token})[0] == 200

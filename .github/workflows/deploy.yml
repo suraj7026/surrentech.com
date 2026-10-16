@@ -20,12 +20,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: pdo_sqlite
           coverage: none
       - name: PHP syntax and application checks
         run: |
-          find public tests -name '*.php' -exec php -l {} \;
+          php scripts/build-page.php
+          find public tests scripts -name '*.php' -exec php -l {} \;
           python3 tests/test_php.py
       - name: Check deployment credentials
         env:
@@ -56,8 +57,9 @@ jobs:
             stderr.log
       - name: Verify live site
         run: |
-          curl -fsS --retry 4 --retry-all-errors --retry-delay 5 --max-time 20 https://surrentech.com/healthz | grep -qx 'ok'
           curl -fsS --max-time 20 https://surrentech.com/ -o /tmp/surrentech-home.html
           grep -q 'Surren Technologies' /tmp/surrentech-home.html
           curl -fsS --max-time 20 https://www.surrentech.com/ -o /dev/null
           curl -fsS --max-time 20 https://surrentech.com/assets/logo.png -o /dev/null
+      - name: Verify live PHP backend
+        run: curl -fsS --retry 4 --retry-all-errors --retry-delay 5 --max-time 20 https://surrentech.com/healthz | grep -qx 'ok'

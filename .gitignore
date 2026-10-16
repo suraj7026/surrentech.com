@@ -10,3 +10,4 @@ __pycache__/
 /surrentech_site.sqlite3
 /surrentech_php.sqlite3
 /public/.env
+/public/index.html

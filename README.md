@@ -1,8 +1,11 @@
 # Surren Technologies website
 
-The production site runs on PHP 8.2 in `/home/surrente/public_html` at
+The production site runs on PHP 8.3 in `/home/surrente/public_html` at
 [ surrentech.com ](https://surrentech.com). No Python app or Composer installation is required.
 The existing design and interactions are preserved in `public/home.php`.
+`php scripts/build-page.php` renders the home page ahead of deployment so it can be
+served even when the host's PHP workers are busy. The form obtains a session CSRF token
+from PHP on submission; it reports an error if PHP is unavailable.
 
 - `public/index.php`: home, consultation submission, health and management routes.
 - `public/app.php`: environment configuration and SQLite storage.
@@ -25,6 +28,7 @@ certificate-verified FTPS, and check both domain names, health and the logo.
 GitHub secrets: `FTP_USERNAME` and `FTP_PASSWORD`.
 
 ```sh
+php scripts/build-page.php
 python3 tests/test_php.py
 php -S 127.0.0.1:8000 -t public tests/router.php
 ```
