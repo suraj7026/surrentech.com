@@ -15,6 +15,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -53,6 +54,25 @@ jobs:
           DJANGO_SECRET_KEY: ci-check-only
           DJANGO_ALLOWED_HOSTS: surrentech.com
         run: python manage.py collectstatic --noinput
+
+      - name: Verify Passenger startup with packaged dependencies
+        working-directory: site
+        env:
+          DJANGO_DB_PATH: ${{ runner.temp }}/startup-check.sqlite3
+          RUN_MIGRATIONS_ON_START: "1"
+          PASSENGER_WSGI_STRICT: "1"
+        run: |
+          export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          python - <<'PY'
+          import passenger_wsgi
+          from django.test import Client
+          client = Client(HTTP_HOST="surrentech.com")
+          assert client.get("/healthz").status_code == 301
+          response = client.get("/healthz", secure=True)
+          assert response.status_code == 200 and response.content == b"ok"
+          assert client.get("/", secure=True).status_code == 200
+          assert client.get("/static/assets/logo.png", secure=True).status_code == 200
+          PY
 
       - name: Stamp this deploy into passenger_wsgi.py (mtime+content change restarts the app)
         working-directory: site
